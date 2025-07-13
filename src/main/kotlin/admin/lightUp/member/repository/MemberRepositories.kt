@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface MemberRepository: JpaRepository<Member, String> {
     fun findByLoginId(loginId: String): Member?
+    fun findMemberById(userId: String): Member?
 }

@@ -6,6 +6,7 @@ import com.github.f4b6a3.ulid.UlidCreator
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
+import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 
 data class MemberDtoRequest(
     @field:NotBlank
@@ -28,13 +29,15 @@ data class MemberDtoRequest(
     @JsonProperty("name")
     private val _name : String?,
 ) {
+    private val encoder = SCryptPasswordEncoder(16,8,1,8,8)
+
     val id = UlidCreator.getUlid().toString()
     val loginId : String
         get() = _loginId!!
     val email : String
         get() = _email!!
-    val password : String
-        get() = _password!!
+    private val password : String
+        get() = encoder.encode(_password)
     val name : String
         get() = _name!!
 
@@ -54,4 +57,21 @@ data class LoginDto(
     val password : String
         get() = _password!!
 
+}
+data class PasswordDto(
+
+
+    @field:NotBlank
+    @JsonProperty("originalPassword")
+    private val _originalPassword : String?,
+
+    @field:NotBlank
+    @JsonProperty("currentPassword")//초록 밑줄은 맞춤법 그냥해라
+    private val _currentPassword : String?,
+)
+{
+    val originalPassword : String
+        get() = _originalPassword!!
+    val currentPassword : String
+        get() = _currentPassword!!
 }
