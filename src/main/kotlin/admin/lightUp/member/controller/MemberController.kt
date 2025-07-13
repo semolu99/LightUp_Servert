@@ -1,6 +1,8 @@
 package admin.lightUp.member.controller
 
+import admin.lightUp.common.authority.TokenInfo
 import admin.lightUp.common.dto.BaseResponse
+import admin.lightUp.member.dto.LoginDto
 import admin.lightUp.member.dto.MemberDtoRequest
 import admin.lightUp.member.service.MemberService
 import jakarta.validation.Valid
@@ -22,5 +24,10 @@ class MemberController(
     fun signup(@RequestBody @Valid memberDtoRequest: MemberDtoRequest) : BaseResponse<Unit> {
         val resultMsg = memberService.signUp(memberDtoRequest)
         return BaseResponse(message = resultMsg)
+    }
+    @PostMapping("/login")
+    fun login(@RequestBody @Valid loginDto: LoginDto): BaseResponse<TokenInfo> {
+        val tokenInfo = memberService.login(loginDto)
+        return BaseResponse(data = tokenInfo)
     }
 }
