@@ -37,7 +37,7 @@ class MemberRole(
     val id: Long? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_ulid", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "user_ulid", foreignKey = ForeignKey(name = "fk_user_role_member_id"), nullable = false)
     val member: Member,
 
     @Column(name = "role", nullable = false)

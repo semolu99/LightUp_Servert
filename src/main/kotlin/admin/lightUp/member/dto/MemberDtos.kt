@@ -1,11 +1,13 @@
 package admin.lightUp.member.dto
 
+import admin.lightUp.common.status.ROLE
 import admin.lightUp.member.entity.Member
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.github.f4b6a3.ulid.UlidCreator
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 
 data class MemberDtoRequest(
@@ -28,18 +30,22 @@ data class MemberDtoRequest(
     @field:NotBlank
     @JsonProperty("name")
     private val _name : String?,
+
+    @JsonProperty("role")
+    private val _role : ROLE,
 ) {
     private val encoder = SCryptPasswordEncoder(16,8,1,8,8)
-
     val id = UlidCreator.getUlid().toString()
     val loginId : String
         get() = _loginId!!
     val email : String
         get() = _email!!
     private val password : String
-        get() = encoder.encode(_password)
+        get() =encoder.encode(_password)
     val name : String
         get() = _name!!
+    val role : ROLE
+        get() = _role
 
     fun toEntity(): Member = Member(id, loginId, email, password, name)
 }
@@ -59,7 +65,6 @@ data class LoginDto(
 
 }
 data class PasswordDto(
-
 
     @field:NotBlank
     @JsonProperty("originalPassword")

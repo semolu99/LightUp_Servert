@@ -25,21 +25,26 @@ class MemberController(
         val resultMsg = memberService.signUp(memberDtoRequest)
         return BaseResponse(message = resultMsg)
     }
+    /**
+     * 로그인
+     */
     @PostMapping("/login")
     fun login(@RequestBody @Valid loginDto: LoginDto): BaseResponse<TokenInfo> {
         val tokenInfo = memberService.login(loginDto)
         return BaseResponse(data = tokenInfo)
     }
-
+    /**
+     * 비밀번호 변경
+     */
     @PutMapping("/change")
-    fun changePassword(@RequestBody @Valid passwordDto: PasswordDto): BaseResponse<TokenInfo> {
+    fun changePassword(@RequestBody @Valid passwordDto: PasswordDto): String {
         val userId = (SecurityContextHolder
             .getContext()
             .authentication
             .principal as CustomUser)
-            .userID
+            .userId
         val resultMsg= memberService.changePassword(userId,passwordDto)
-        return BaseResponse(message = resultMsg)
+        return resultMsg
     }
 
 }
