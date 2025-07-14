@@ -1,5 +1,6 @@
 package admin.lightUp.member.dto
 
+import admin.lightUp.common.annotation.ValidEnum
 import admin.lightUp.common.status.ROLE
 import admin.lightUp.member.entity.Member
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -31,6 +32,8 @@ data class MemberDtoRequest(
     @JsonProperty("name")
     private val _name : String?,
 
+    @field:ValidEnum(enumClass = ROLE::class,
+        message = "MEMBER 이나 PROTECTOR 중 하나를 선택해주세요")
     @JsonProperty("role")
     private val _role : ROLE,
 ) {
@@ -45,7 +48,7 @@ data class MemberDtoRequest(
     val name : String
         get() = _name!!
     val role : ROLE
-        get() = _role
+        get() = ROLE.valueOf(_role.name)
 
     fun toEntity(): Member = Member(id, loginId, email, password, name)
 }

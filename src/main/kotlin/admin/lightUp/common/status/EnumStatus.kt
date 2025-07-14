@@ -8,3 +8,5 @@ enum class ROLE{
     PROTECTOR,
     MEMBER
 }
+//에러코드 enum클래스로 만들고 코드 번호별로 분류해야됨 무슨에러인지
+//ex 성공 001/id 옳은값 아님
