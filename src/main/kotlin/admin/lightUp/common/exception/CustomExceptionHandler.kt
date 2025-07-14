@@ -38,10 +38,10 @@ class CustomExceptionHandler {
     @ExceptionHandler(BadCredentialsException::class)
     protected fun badCredentialsException(ex: BadCredentialsException):
             ResponseEntity<BaseResponse<Map<String, String>>> {
-        val erros = mapOf("로그인 실패" to "아이디 비밀번호가 일치하지 않습니다" )
+        val errors = mapOf("로그인 실패" to "아이디 비밀번호가 일치하지 않습니다" )
         return ResponseEntity(BaseResponse(
             ResultCode.ERROR.name,
-            erros,
+            errors,
             ResultCode.ERROR.msg
         ), HttpStatus.BAD_REQUEST)
     }

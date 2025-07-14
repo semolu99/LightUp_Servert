@@ -2,17 +2,23 @@ package admin.lightUp.member.service
 
 import admin.lightUp.common.authority.JwtTokenProvider
 import admin.lightUp.common.authority.TokenInfo
+import admin.lightUp.common.exception.InvalidInputException
+import admin.lightUp.common.status.ROLE
 import admin.lightUp.common.email.EmailUtility
 import admin.lightUp.common.email.MailDto
 import admin.lightUp.common.exception.InvalidInputException
 import admin.lightUp.common.repository.MailRepositoryRedis
 import admin.lightUp.member.dto.LoginDto
 import admin.lightUp.member.dto.MemberDtoRequest
+import admin.lightUp.member.dto.PasswordDto
 import admin.lightUp.member.entity.Member
+import admin.lightUp.member.entity.MemberRole
 import admin.lightUp.member.repository.MemberRepository
+import admin.lightUp.member.repository.MemberRoleRepository
 import jakarta.transaction.Transactional
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
+import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 import org.springframework.stereotype.Service
 
 @Transactional
@@ -21,6 +27,7 @@ class MemberService(
     private val memberRepository: MemberRepository,
     private val authenticationManagerBuilder: AuthenticationManagerBuilder,
     private val jwtTokenProvider: JwtTokenProvider,
+    private val memberRoleRepository: MemberRoleRepository,
     private val emailUtility: EmailUtility,
     private val mailRepositoryRedis: MailRepositoryRedis,
 ) {
@@ -61,16 +68,43 @@ class MemberService(
         }
 
         member = memberDtoRequest.toEntity()
-
         memberRepository.save(member)
 
+        val memberRole = MemberRole(null,member,memberDtoRequest.role)
+        memberRoleRepository.save(memberRole)
+        
         mailRepositoryRedis.deleteCheckByEmail(member.email)
 
         return "회원 가입 완료"
     }
+    /**
+     * 로그인
+     */
     fun login(loginDto: LoginDto): TokenInfo {
-        val authenticationToken = UsernamePasswordAuthenticationToken(loginDto.loginId, loginDto.password)
+        val member = memberRepository.findByLoginId(loginDto.loginId) ?: throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀림")
+        val encoder= SCryptPasswordEncoder(16,8,1,8,8)
+        if(!encoder.matches(loginDto.password, member.password)){
+            throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀립니다.")
+        }
+
+        val authenticationToken = UsernamePasswordAuthenticationToken(loginDto.loginId, member.password)
+
         val authentication = authenticationManagerBuilder.`object`.authenticate(authenticationToken)
         return jwtTokenProvider.createToken(authentication)
+    }
+
+    /**
+     * 비밀번호 변경
+     */
+    fun changePassword(userId: String,passwordDto: PasswordDto) : String{
+        val member : Member = memberRepository.findMemberById(userId) ?: throw InvalidInputException("없는 아이디.")
+        val encoder= SCryptPasswordEncoder(16,8,1,8,8)
+        if(!encoder.matches(passwordDto.originalPassword, member.password)){
+            throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀립니다.")
+        }
+        member.password=encoder.encode(passwordDto.currentPassword)
+        memberRepository.save(member)
+
+        return "비밀번호 변경 완료"
     }
 }
