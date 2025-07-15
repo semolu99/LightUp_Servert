@@ -12,11 +12,12 @@ import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 
 data class MemberDtoRequest(
     @field:NotBlank
+    @Pattern(regexp ="^.{3,30}")
     @JsonProperty("loginId")
     private val _loginId : String?,
 
     @field:NotBlank
-    @field:Email
+    @Pattern(regexp ="^.{3,30}")
     @JsonProperty("email")
     private val _email : String?,
 
@@ -28,13 +29,16 @@ data class MemberDtoRequest(
     private val _password : String?,
 
     @field:NotBlank
+    @Pattern(regexp ="^.{3,30}")
     @JsonProperty("name")
     private val _name : String?,
 
-    @field:ValidEnum(enumClass = ROLE::class,
-        message = "MEMBER 이나 PROTECTOR 중 하나를 선택해주세요")
+
+    @field:NotBlank
+    @Pattern(regexp ="^.{3,30}")
+    @field:ValidEnum(enumClass = ROLE::class)
     @JsonProperty("role")
-    private val _role : ROLE,
+    private val _role : String?,
 ) {
     private val encoder = SCryptPasswordEncoder(16,8,1,8,8)
     val id = UlidCreator.getUlid().toString()
@@ -47,7 +51,7 @@ data class MemberDtoRequest(
     val name : String
         get() = _name!!
     val role : ROLE
-        get() = ROLE.valueOf(_role.name)
+        get() = ROLE.valueOf(_role!!)
 
     fun toEntity(): Member = Member(id, loginId, email, password, name)
 }
@@ -85,7 +89,7 @@ data class PasswordDto(
 
 data class CheckedDtoRequest(
     @field:NotBlank
-    @JsonProperty("LoginId")
+    @JsonProperty("loginId")
     private val _loginId : String?,
 
     @field:NotBlank
@@ -109,10 +113,11 @@ data class CheckedDtoRequest(
 
 data class MailDto(
     @field:NotBlank
+    @field:Email
     @JsonProperty("email")
     private val _email: String?,
 
-    val authCode: String
+    val authCode: String?
 ) {
     val email : String
         get() = _email!!
@@ -123,7 +128,7 @@ data class ResetPasswordDtoRequest(
     @field:Pattern(
         regexp="^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()\\-=+\\[\\]{};:'\",<.>/?|])[a-zA-Z0-9~!@#$%^&*()\\-=+\\[\\]{};:'\",<.>/?|]{8,20}$",
     )
-    @JsonProperty("Password")
+    @JsonProperty("password")
     private val _password: String?
 ) {
     private val encoder = SCryptPasswordEncoder(16,8,1,8,8)

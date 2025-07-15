@@ -1,6 +1,9 @@
 package admin.lightUp.common.service
 
+import admin.lightUp.common.dto.BaseResponse
 import admin.lightUp.common.dto.CustomUser
+import admin.lightUp.common.exception.InvalidInputException
+import admin.lightUp.common.status.ResultCode
 import admin.lightUp.member.entity.Member
 import admin.lightUp.member.repository.MemberRepository
 import admin.lightUp.member.service.MemberService
@@ -22,7 +25,7 @@ class CustomUserDetailsService(
     override fun loadUserByUsername(username: String): UserDetails =
         memberRepository.findByLoginId(username)
             ?.let { createUserDetails(it) }
-            ?: throw UsernameNotFoundException("일치하는 유저를 찾을 수 없습니다.")
+            ?: throw InvalidInputException(ResultCode.NOT_MEMBER.statusCode, ResultCode.NOT_MEMBER.message, ResultCode.NOT_MEMBER.code)
 
     private fun createUserDetails(member: Member): UserDetails =
         CustomUser(
