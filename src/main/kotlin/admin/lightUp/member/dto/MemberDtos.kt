@@ -8,7 +8,6 @@ import com.github.f4b6a3.ulid.UlidCreator
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 
 data class MemberDtoRequest(
@@ -82,4 +81,52 @@ data class PasswordDto(
         get() = _originalPassword!!
     val currentPassword : String
         get() = _currentPassword!!
+}
+
+data class CheckedDtoRequest(
+    @field:NotBlank
+    @JsonProperty("LoginId")
+    private val _loginId : String?,
+
+    @field:NotBlank
+    @field:Email
+    @JsonProperty("email")
+    private val _email : String?,
+
+    @field:NotBlank
+    @JsonProperty("name")
+    private val _name : String?,
+
+    val authCode : String?,
+) {
+    val loginId : String
+        get() = _loginId!!
+    val email : String
+        get() = _email!!
+    val name: String
+        get() = _name!!
+}
+
+data class MailDto(
+    @field:NotBlank
+    @JsonProperty("email")
+    private val _email: String?,
+
+    val authCode: String
+) {
+    val email : String
+        get() = _email!!
+}
+
+data class ResetPasswordDtoRequest(
+    @field:NotBlank
+    @field:Pattern(
+        regexp="^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()\\-=+\\[\\]{};:'\",<.>/?|])[a-zA-Z0-9~!@#$%^&*()\\-=+\\[\\]{};:'\",<.>/?|]{8,20}$",
+    )
+    @JsonProperty("Password")
+    private val _password: String?
+) {
+    private val encoder = SCryptPasswordEncoder(16,8,1,8,8)
+    val password : String
+        get() = encoder.encode(_password!!)
 }

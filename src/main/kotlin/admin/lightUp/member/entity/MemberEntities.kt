@@ -24,7 +24,7 @@ class Member(
 
     @Column(name = "password_changed_date")
     @Temporal(TemporalType.DATE)
-    val passwordChangedData: LocalDate = LocalDate.now(),
+    var passwordChangedData: LocalDate = LocalDate.now(),
 ) {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "member")
     val memberRole : List<MemberRole>? = null

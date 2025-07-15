@@ -3,14 +3,14 @@ package admin.lightUp.member.service
 import admin.lightUp.common.authority.JwtTokenProvider
 import admin.lightUp.common.authority.TokenInfo
 import admin.lightUp.common.exception.InvalidInputException
-import admin.lightUp.common.status.ROLE
 import admin.lightUp.common.email.EmailUtility
-import admin.lightUp.common.email.MailDto
-import admin.lightUp.common.exception.InvalidInputException
 import admin.lightUp.common.repository.MailRepositoryRedis
 import admin.lightUp.member.dto.LoginDto
 import admin.lightUp.member.dto.MemberDtoRequest
+import admin.lightUp.member.dto.CheckedDtoRequest
+import admin.lightUp.member.dto.MailDto
 import admin.lightUp.member.dto.PasswordDto
+import admin.lightUp.member.dto.ResetPasswordDtoRequest
 import admin.lightUp.member.entity.Member
 import admin.lightUp.member.entity.MemberRole
 import admin.lightUp.member.repository.MemberRepository
@@ -20,6 +20,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 import org.springframework.stereotype.Service
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Transactional
 @Service
@@ -34,34 +36,39 @@ class MemberService(
     /**
      * 이메일 인증
      */
-    fun sendMail(mailDto: MailDto): String {
-        val member: Member? = memberRepository.findByEmail(mailDto.email)
+    fun sendMail(email : String): String {
+        val member: Member? = memberRepository.findByEmail(email)
         if (member != null) {
             throw InvalidInputException("이미 존재하는 이메일입니다.")
         }
-        val randomString = emailUtility.sendEmail(mailDto)
+        val randomString = emailUtility.sendEmail(email)
 
-        mailRepositoryRedis.saveMail(mailDto.email, randomString)
+        mailRepositoryRedis.saveMail(email, randomString)
 
         return "메일을 성공적으로 발송했습니다."
     }
     /**
      * 이메일 검증
      */
-    fun mailCheck(email: String, authCode: String): String {
-        val mail = mailRepositoryRedis.findByMailCode(email)
+    fun checkMail(mailDto: MailDto): String {
+        val mail = mailRepositoryRedis.findByMailCode(mailDto.email)
             ?: throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
-        if(authCode != mail) {
+        if(mailDto.authCode != mail) {
             throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
         }
-        mailRepositoryRedis.deleteMailByEmail(email)
-        mailRepositoryRedis.saveChecked(email)
+        mailRepositoryRedis.deleteMailByEmail(mailDto.email)
+        mailRepositoryRedis.saveChecked(mailDto.email)
         return "정상 확인 되었습니다."
     }
     /**
      * 회원가입
      */
     fun signUp(memberDtoRequest: MemberDtoRequest): String {
+        val checked = mailRepositoryRedis.findByMailChecked(memberDtoRequest.loginId)
+
+        if (checked != "Checked"){
+            throw InvalidInputException("")
+        }
         var member : Member? = memberRepository.findByLoginId(memberDtoRequest.loginId)
         if (member != null){
             return "이미 존재하는 회원"
@@ -103,6 +110,55 @@ class MemberService(
             throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀립니다.")
         }
         member.password=encoder.encode(passwordDto.currentPassword)
+        member.passwordChangedData = LocalDate.now()
+        memberRepository.save(member)
+
+        return "비밀번호 변경 완료"
+    }
+    /**
+     * 로그인 전 비밀번호 변경 전 이메일 확인
+     */
+    fun requestPasswordResetEmail(checkedDtoRequest: CheckedDtoRequest): String {
+        val member = memberRepository.findByEmail(checkedDtoRequest.email) ?: throw InvalidInputException("없는 정보")
+        if (checkedDtoRequest.loginId != member.loginId || checkedDtoRequest.name != member.name) {
+            throw InvalidInputException("잘못된 정보")
+        }
+        val randomString = emailUtility.sendEmail(member.email)
+
+        mailRepositoryRedis.saveMail(member.email, randomString)
+
+        return "인증 메일을 확인 해 주세요."
+    }
+    /**
+     * 로그인 전 비밀번호 변경 전 인증 번호 확인
+     */
+    fun verifyPasswordResetCode(checkedDtoRequest: CheckedDtoRequest): TokenInfo {
+        val member = memberRepository.findByEmail(checkedDtoRequest.email) ?: throw InvalidInputException("잘못된 정보")
+        if (checkedDtoRequest.loginId != member.loginId || checkedDtoRequest.name != member.name) {
+            throw InvalidInputException("잘못된 정보")
+        }
+        val mail = mailRepositoryRedis.findByMailCode(checkedDtoRequest.email)
+            ?: throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
+        if(checkedDtoRequest.authCode != mail) {
+            throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
+        }
+
+        val authenticationToken = UsernamePasswordAuthenticationToken(member.loginId, member.password)
+
+        val authentication = authenticationManagerBuilder.`object`.authenticate(authenticationToken)
+
+        mailRepositoryRedis.deleteMailByEmail(checkedDtoRequest.email)
+
+        return jwtTokenProvider.createTempToken(authentication)
+    }
+    /**
+     * 리셋 비밀번호
+     */
+    fun resetPassword(password:String, userId: String) : String {
+        val member = memberRepository.findMemberById(userId)?: throw InvalidInputException("")
+        val encoder= SCryptPasswordEncoder(16,8,1,8,8)
+        member.password = encoder.encode(password)
+        member.passwordChangedData = LocalDate.now()
         memberRepository.save(member)
 
         return "비밀번호 변경 완료"

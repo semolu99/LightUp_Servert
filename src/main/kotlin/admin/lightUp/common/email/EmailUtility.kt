@@ -17,7 +17,7 @@ class EmailUtility(
         return (UUID.randomUUID().toString()).substring(0, length)
     }
     @Async
-    fun sendEmail(mailDto: MailDto) : String {
+    fun sendEmail(email: String) : String {
         val randomString = getRandomString()
 
         val content = "LightUp 이메일 인증<br><h2>인증번호 : ${randomString}</h2><br>5분 이내로 인증코드를 입력해주세요.<br>감사합니다."
@@ -25,7 +25,7 @@ class EmailUtility(
         val mimeMessage = mailSender.createMimeMessage()
         val mimeMessageHelper = MimeMessageHelper(mimeMessage, false, "UTF-8")
         mimeMessageHelper.setFrom("lightupofficial@naver.com")
-        mimeMessageHelper.setTo(mailDto.email)
+        mimeMessageHelper.setTo(email)
         mimeMessageHelper.setSubject("[LightUp] 이메일 인증 메일)")
         mimeMessageHelper.setText(content, true)
 

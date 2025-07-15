@@ -25,6 +25,7 @@ class SecurityConfig(
             }
             .authorizeHttpRequests {
                 it.requestMatchers("/api/v1/member/signup").anonymous()
+                    .requestMatchers("/api/v1/member/reset").hasRole("TEMP")
                     .anyRequest().permitAll()
             }
             .addFilterBefore(

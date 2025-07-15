@@ -14,7 +14,7 @@ import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.stereotype.Component
 import java.util.*
-
+const val TEMP_EXPIRATION_MILLIS = 1000*60 * 5
 const val EXPIRATION_MILLIS = 1000*60 * 30
 @Component
 class JwtTokenProvider {
@@ -44,8 +44,26 @@ class JwtTokenProvider {
             .signWith(key, Jwts.SIG.HS256)
             .compact()
 
-    return TokenInfo("Bearer", accessToken)
-}
+        return TokenInfo("Bearer", accessToken)
+    }
+    /**
+     * 임시 토큰 발행
+     */
+    fun createTempToken(authentication: Authentication): TokenInfo {
+        val now = Date()
+        val accessExpiration = Date(now.time + TEMP_EXPIRATION_MILLIS)
+
+        val tempAccessToken = Jwts.builder()
+            .subject(authentication.name)
+            .claim("auth", "ROLE_TEMP")
+            .claim("userId",(authentication.principal as CustomUser).userId )
+            .issuedAt(now)
+            .expiration(accessExpiration)
+            .signWith(key, Jwts.SIG.HS256)
+            .compact()
+
+        return TokenInfo("Bearer", tempAccessToken)
+    }
 
     /**
      * 토큰 정보 추출
