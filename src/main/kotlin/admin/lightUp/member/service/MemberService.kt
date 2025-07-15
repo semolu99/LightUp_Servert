@@ -2,15 +2,11 @@ package admin.lightUp.member.service
 
 import admin.lightUp.common.authority.JwtTokenProvider
 import admin.lightUp.common.authority.TokenInfo
-import admin.lightUp.common.exception.InvalidInputException
 import admin.lightUp.common.email.EmailUtility
+import admin.lightUp.common.exception.InvalidInputException
 import admin.lightUp.common.repository.MailRepositoryRedis
-import admin.lightUp.member.dto.LoginDto
-import admin.lightUp.member.dto.MemberDtoRequest
-import admin.lightUp.member.dto.CheckedDtoRequest
-import admin.lightUp.member.dto.MailDto
-import admin.lightUp.member.dto.PasswordDto
-import admin.lightUp.member.dto.ResetPasswordDtoRequest
+import admin.lightUp.common.status.ResultCode
+import admin.lightUp.member.dto.*
 import admin.lightUp.member.entity.Member
 import admin.lightUp.member.entity.MemberRole
 import admin.lightUp.member.repository.MemberRepository
@@ -21,8 +17,7 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.crypto.scrypt.SCryptPasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.LocalDate
-import java.time.LocalDateTime
-
+//shift option o
 @Transactional
 @Service
 class MemberService(
@@ -39,7 +34,7 @@ class MemberService(
     fun sendMail(email : String): String {
         val member: Member? = memberRepository.findByEmail(email)
         if (member != null) {
-            throw InvalidInputException("이미 존재하는 이메일입니다.")
+            throw InvalidInputException(ResultCode.DUPLICATION_EMAIL.statusCode,ResultCode.DUPLICATION_EMAIL.message,ResultCode.DUPLICATION_EMAIL.code)
         }
         val randomString = emailUtility.sendEmail(email)
 
@@ -52,9 +47,9 @@ class MemberService(
      */
     fun checkMail(mailDto: MailDto): String {
         val mail = mailRepositoryRedis.findByMailCode(mailDto.email)
-            ?: throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
+            ?: throw InvalidInputException(ResultCode.NOT_MATCH_EMAIL.statusCode,ResultCode.NOT_MATCH_EMAIL.message,ResultCode.NOT_MATCH_EMAIL.code)
         if(mailDto.authCode != mail) {
-            throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
+            throw InvalidInputException(ResultCode.NOT_MATCH_EMAIL_CODE.statusCode,ResultCode.NOT_MATCH_EMAIL_CODE.message,ResultCode.NOT_MATCH_EMAIL_CODE.code)
         }
         mailRepositoryRedis.deleteMailByEmail(mailDto.email)
         mailRepositoryRedis.saveChecked(mailDto.email)
@@ -64,14 +59,14 @@ class MemberService(
      * 회원가입
      */
     fun signUp(memberDtoRequest: MemberDtoRequest): String {
-        val checked = mailRepositoryRedis.findByMailChecked(memberDtoRequest.loginId)
+        val checked = mailRepositoryRedis.findByMailChecked(memberDtoRequest.email)
 
         if (checked != "Checked"){
-            throw InvalidInputException("")
+            throw InvalidInputException(ResultCode.NOT_MAIL_CHECKED.statusCode,ResultCode.NOT_MAIL_CHECKED.message,ResultCode.NOT_MAIL_CHECKED.code)
         }
         var member : Member? = memberRepository.findByLoginId(memberDtoRequest.loginId)
         if (member != null){
-            return "이미 존재하는 회원"
+            throw InvalidInputException(ResultCode.DUPLICATION_ID.statusCode,ResultCode.DUPLICATION_ID.message,ResultCode.DUPLICATION_ID.code)
         }
 
         member = memberDtoRequest.toEntity()
@@ -88,10 +83,10 @@ class MemberService(
      * 로그인
      */
     fun login(loginDto: LoginDto): TokenInfo {
-        val member = memberRepository.findByLoginId(loginDto.loginId) ?: throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀림")
+        val member = memberRepository.findByLoginId(loginDto.loginId) ?: throw InvalidInputException(ResultCode.LOGIN_ERROR.statusCode,ResultCode.LOGIN_ERROR.message,ResultCode.LOGIN_ERROR.code)
         val encoder= SCryptPasswordEncoder(16,8,1,8,8)
         if(!encoder.matches(loginDto.password, member.password)){
-            throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀립니다.")
+            throw InvalidInputException(ResultCode.LOGIN_ERROR.statusCode,ResultCode.LOGIN_ERROR.message,ResultCode.LOGIN_ERROR.code)
         }
 
         val authenticationToken = UsernamePasswordAuthenticationToken(loginDto.loginId, member.password)
@@ -104,10 +99,10 @@ class MemberService(
      * 비밀번호 변경
      */
     fun changePassword(userId: String,passwordDto: PasswordDto) : String{
-        val member : Member = memberRepository.findMemberById(userId) ?: throw InvalidInputException("없는 아이디.")
+        val member : Member = memberRepository.findMemberById(userId) ?: throw InvalidInputException(ResultCode.INVALID_ACCESS_TOKEN.statusCode,ResultCode.INVALID_ACCESS_TOKEN.message,ResultCode.INVALID_ACCESS_TOKEN.code)
         val encoder= SCryptPasswordEncoder(16,8,1,8,8)
         if(!encoder.matches(passwordDto.originalPassword, member.password)){
-            throw InvalidInputException("로그인 아이디 혹은 비밀번호가 틀립니다.")
+            throw InvalidInputException(ResultCode.NOT_MATCH_ORIGINAL_PASSWORD.statusCode,ResultCode.NOT_MATCH_ORIGINAL_PASSWORD.message,ResultCode.NOT_MATCH_ORIGINAL_PASSWORD.code)
         }
         member.password=encoder.encode(passwordDto.currentPassword)
         member.passwordChangedData = LocalDate.now()
@@ -119,9 +114,10 @@ class MemberService(
      * 로그인 전 비밀번호 변경 전 이메일 확인
      */
     fun requestPasswordResetEmail(checkedDtoRequest: CheckedDtoRequest): String {
-        val member = memberRepository.findByEmail(checkedDtoRequest.email) ?: throw InvalidInputException("없는 정보")
+        val member = memberRepository.findByEmail(checkedDtoRequest.email) ?:
+            throw InvalidInputException(ResultCode.NOT_MEMBER.statusCode,ResultCode.NOT_MEMBER.message,ResultCode.NOT_MEMBER.code)
         if (checkedDtoRequest.loginId != member.loginId || checkedDtoRequest.name != member.name) {
-            throw InvalidInputException("잘못된 정보")
+            throw InvalidInputException(ResultCode.NOT_MEMBER.statusCode,ResultCode.NOT_MEMBER.message,ResultCode.NOT_MEMBER.code)
         }
         val randomString = emailUtility.sendEmail(member.email)
 
@@ -133,14 +129,14 @@ class MemberService(
      * 로그인 전 비밀번호 변경 전 인증 번호 확인
      */
     fun verifyPasswordResetCode(checkedDtoRequest: CheckedDtoRequest): TokenInfo {
-        val member = memberRepository.findByEmail(checkedDtoRequest.email) ?: throw InvalidInputException("잘못된 정보")
+        val member = memberRepository.findByEmail(checkedDtoRequest.email) ?: throw InvalidInputException(ResultCode.NOT_MEMBER.statusCode,ResultCode.NOT_MEMBER.message,ResultCode.NOT_MEMBER.code)
         if (checkedDtoRequest.loginId != member.loginId || checkedDtoRequest.name != member.name) {
-            throw InvalidInputException("잘못된 정보")
+            throw InvalidInputException(ResultCode.NOT_MEMBER.statusCode,ResultCode.NOT_MEMBER.message,ResultCode.NOT_MEMBER.code)
         }
         val mail = mailRepositoryRedis.findByMailCode(checkedDtoRequest.email)
-            ?: throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
+            ?: throw InvalidInputException(ResultCode.NOT_MATCH_EMAIL_CODE.statusCode,ResultCode.NOT_MATCH_EMAIL.message,ResultCode.NOT_MATCH_EMAIL.code)
         if(checkedDtoRequest.authCode != mail) {
-            throw InvalidInputException("발급 받은 인증 코드가 만료 되었거나 잘못 되었습니다.")
+            throw InvalidInputException(ResultCode.NOT_MATCH_EMAIL_CODE.statusCode,ResultCode.NOT_MATCH_EMAIL.message,ResultCode.NOT_MATCH_EMAIL.code)
         }
 
         val authenticationToken = UsernamePasswordAuthenticationToken(member.loginId, member.password)
@@ -155,9 +151,8 @@ class MemberService(
      * 리셋 비밀번호
      */
     fun resetPassword(password:String, userId: String) : String {
-        val member = memberRepository.findMemberById(userId)?: throw InvalidInputException("")
-        val encoder= SCryptPasswordEncoder(16,8,1,8,8)
-        member.password = encoder.encode(password)
+        val member = memberRepository.findMemberById(userId)?: throw InvalidInputException(ResultCode.INVALID_ACCESS_TOKEN.statusCode,ResultCode.INVALID_ACCESS_TOKEN.message,ResultCode.INVALID_ACCESS_TOKEN.code)
+        member.password = password
         member.passwordChangedData = LocalDate.now()
         memberRepository.save(member)
 

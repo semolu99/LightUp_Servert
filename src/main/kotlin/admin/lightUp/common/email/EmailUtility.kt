@@ -26,7 +26,7 @@ class EmailUtility(
         val mimeMessageHelper = MimeMessageHelper(mimeMessage, false, "UTF-8")
         mimeMessageHelper.setFrom("lightupofficial@naver.com")
         mimeMessageHelper.setTo(email)
-        mimeMessageHelper.setSubject("[LightUp] 이메일 인증 메일)")
+        mimeMessageHelper.setSubject("[LightUp] 이메일 인증 메일")
         mimeMessageHelper.setText(content, true)
 
         mailSender.send(mimeMessage)
